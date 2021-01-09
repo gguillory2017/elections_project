@@ -41,5 +41,8 @@ vignettes/*.pdf
 # Data files
 raw_data
 cleaned_data
-state_shapes
 *.json
+
+#Images
+
+*.png
