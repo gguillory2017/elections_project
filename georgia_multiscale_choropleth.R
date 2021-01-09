@@ -1,15 +1,29 @@
-library(geojsonio)
+library(ggplot2)
+library(sf)
+library(data.table)
+library(geojsonsf)
+library(ggnewscale)
+
+setwd("C:/Users/Alex/Desktop/elections_project")
+
+#Setting up Georgia state map geometry
+us_map_sf <- geojson_sf("state_shapes_500k.json")
+georgia_map_sf <- subset(us_map_sf, STATE=="13")
+names(georgia_map_sf) <- c("Total land area (sq mi)", "LSAD code", "GEO_ID", "County", "County code", "State code", "geometry")
 
 
 #Load raw 2020 data, subset to Georgia
 raw_2020_data <- read.csv("raw_data/2020_election/president_county_candidate.csv")
 georgia_2020_raw <- subset(raw_2020_data, state == "Georgia")
 
+
 #Create empty data frame, and names 
 total_votes_by_county <- data.frame(State=character(), County=character(), 
                                     TotalVotes=integer(), CandidateVotes=integer(), 
                                     VoteRatio=numeric(), CandidateName=character(),
                                     CandidateParty=character())
+
+#Renaming dataframe to have nicer names
 state="State"
 county="County"
 total_votes="Total votes in county"
@@ -31,7 +45,28 @@ for (county_x in unique(georgia_2020_raw$county)){
   winner_name <- winner_row$candidate
   winner_party <- winner_row$party
   winner_ratio <- winner_total/vote_total
-  temp_df <- data.frame(state_name,county_x,vote_total,winner_total,winner_ratio,winner_name,winner_party)
+  county_name <- gsub(" County", "", county_x)
+  temp_df <- data.frame(state_name,county_name,vote_total,winner_total,winner_ratio,winner_name,winner_party)
   names(temp_df) <- final_names
   total_votes_by_county <- rbind(temp_df, total_votes_by_county)
 }
+
+combined_df <- merge(georgia_map_sf, total_votes_by_county)
+trump_df <- subset(combined_df, `Name of winning candidate` == "Donald Trump")
+biden_df <- subset(combined_df, `Name of winning candidate` == "Joe Biden")
+
+combined_map <- ggplot(data = trump_df) +
+  geom_sf(aes(fill = trump_df$`Percentage of votes for winning candiate`)) +
+  scale_fill_gradient(low="pink",high="darkred", name="Percentage of popular vote for Trump") +
+  new_scale("fill") +
+  geom_sf(data=biden_df, inherit.aes = FALSE,
+          aes(fill = biden_df$`Percentage of votes for winning candiate`)) +
+  scale_fill_gradient(low="skyblue",high="darkblue",name="Percentage of popular vote for Biden") +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  ggtitle("State of Georgia", subtitle = "2020 US presidential race\nPercentage of popular vote by winner in each county")
+
+print(combined_map)
+
+print("completed")
+
